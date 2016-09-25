@@ -25,7 +25,9 @@ struct UpDown {
 	}
 };
 
-template<int PIN_A, int PIN_B, int MIN_VAL, int MAX_VAL, int STEP=1>
+template<int PIN_A,      int PIN_B,
+	int MIN_VAL,    int MAX_VAL,
+	int STEP_MIN=1, int STEP_MAX=16>
 class RotaryEncoder {
 public:
 	void setup() {
@@ -43,6 +45,24 @@ private:
 	static int& valueref() {
 		static int value = 0;
 		return value;
+	}
+
+	static int step() {
+		constexpr unsigned int TIME_RANGE_MS = 100;
+		constexpr int STEP_RANGE = STEP_MAX - STEP_MIN;
+
+		if (STEP_RANGE <= 0) {
+			return STEP_MIN;
+		}
+
+		static unsigned int last_time_ms = 0;
+
+		unsigned int now_ms = millis();
+		const int time_diff = min(TIME_RANGE_MS, now_ms - last_time_ms);
+		int cur_step = STEP_MAX - (time_diff * STEP_RANGE / TIME_RANGE_MS);
+
+		last_time_ms = now_ms;
+		return cur_step;
 	}
 
 	static void read_state() {
@@ -68,18 +88,22 @@ private:
 		// To work reliably, the rotary encoder must be hardware debounced,
 		// else we will never match anything here.
 		switch (full_step) {
-			case 0b00011110:
-				valueref() = min(valueref() + STEP, MAX_VAL);
+			case 0b00011110: {
+				const int v = valueref() + step();
+				valueref() = min(v, MAX_VAL);
 				break;
-			case 0b10110100:
-				valueref() = max(valueref() - STEP, MIN_VAL);
+			}
+			case 0b10110100: {
+				const int v = valueref() - step();
+				valueref() = max(v, MIN_VAL);
 				break;
+			}
 		};
 	}
 };
 
 UpDown ud_led1(0, 1023);
-RotaryEncoder<D5, D6, 0, 1023> re;
+RotaryEncoder<D5, D6, 0, 1023, 1, 42> re;
 
 void setup() {
 	Serial.begin(9600);
