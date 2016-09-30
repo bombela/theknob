@@ -80,9 +80,7 @@ flags = [
 '-I', '/home/bombela/.platformio/packages/framework-arduinoespressif8266/tools/sdk/include',
 '-I', '/home/bombela/.platformio/packages/framework-arduinoespressif8266/tools/sdk/lwip/include',
 '-I', '/home/bombela/.platformio/packages/framework-arduinoespressif8266/variants/d1_mini',
-'-L', '.pioenvs/d1_mini',
-'-L', '/home/bombela/.platformio/packages/framework-arduinoespressif8266/tools/sdk/lib',
-'-L',' /home/bombela/.platformio/platforms/espressif8266/ldscripts',
+'-I', '/home/bombela/.platformio/packages/framework-arduinoespressif8266/libraries/ESP8266WiFi/src',
 ]
 
 # Set this to the absolute path to the folder (NOT the file!) containing the

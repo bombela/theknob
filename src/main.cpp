@@ -1,9 +1,9 @@
 
+#include <ESP8266WiFi.h>
 #include <Arduino.h>
 
-#define LED_1 D5
-#define INFO_PIN D8
-#define INFO_PIN2 D7
+#define LED_PIN LED_BUILTIN
+#define LED2_PIN D2
 
 struct UpDown {
 	int uvalue = 0;
@@ -102,33 +102,121 @@ private:
 	}
 };
 
-UpDown ud_led1(0, 1023);
+void connect_wifi() {
+	Serial.printf("Connecting wifi...\n");
+	WiFi.mode(WIFI_STA);
+
+	WiFi.begin("ssid", "pass");
+
+	// Use the WiFi.status() function to check if the ESP8266
+	// is connected to a WiFi network.
+	while (WiFi.status() != WL_CONNECTED) {
+		delay(100);
+	}
+	Serial.printf("WIFI CONNECTED (%s)\n", WiFi.localIP().toString().c_str());
+}
+
 RotaryEncoder<D5, D6, 0, 1023, 1, 42> re;
+WiFiServer server(80);
+UpDown udled2(0, 1023, 5);
 
 void setup() {
 	Serial.begin(9600);
 	Serial.printf("SETUP START\n");
-	//pinMode(LED_1, OUTPUT);
-	//analogWrite(LED_1, 0);
-	pinMode(INFO_PIN, OUTPUT);
-	analogWrite(INFO_PIN, 0);
-	pinMode(INFO_PIN2, OUTPUT);
-	digitalWrite(INFO_PIN2, 0);
 
+	pinMode(LED_PIN, OUTPUT);
+	pinMode(LED2_PIN, OUTPUT);
+	analogWrite(LED2_PIN, 0);
 	re.setup();
+
+	//connect_wifi();
+	//server.begin();
+
 	Serial.printf("SETUP DONE\n");
 }
 
-int last_val = 0;
 
 void loop() {
 	//analogWrite(LED_1, ud_led1.iter());
 
-	int val = re.value();
-	if (val != last_val) {
-		Serial.printf("-> %d\n", re.value());
+	{
+		static int last_val = 0;
+		int val = re.value();
+		if (val != last_val) {
+			Serial.printf("-> %d\n", re.value());
+		}
+		last_val = val;
 	}
-	last_val = val;
+
+	{
+		analogWrite(LED2_PIN, udled2.iter());
+	}
+
+	delay(10);
+	return;
+
+	WiFiClient client = server.available();
+	if (!client) {
+		return;
+	}
+
+	String req = client.readStringUntil('\r');
+	Serial.println(req);
+	client.flush();
+
+	// Match the request
+	int val = -1; // We'll use 'val' to keep track of both the
+	// request type (read/set) and value if set.
+	if (req.indexOf("/led/0") != -1)
+		val = 0; // Will write LED low
+	else if (req.indexOf("/led/1") != -1)
+		val = 1; // Will write LED high
+	else if (req.indexOf("/knob") != -1)
+		val = 2; // Will write LED high
+	// Otherwise request will be invalid. We'll say as much in HTML
+
+	// Set GPIO5 according to the request
+	if (val >= 0)
+		digitalWrite(LED_PIN, !val);
+
+	client.flush();
+
+	// Prepare the response. Start with the common header:
+	String s = "HTTP/1.1 200 OK\r\n";
+	s += "Content-Type: text/html\r\n";
+	//s += "Transfer-Encoding: chunked\r\n";
+	s += "\r\n";
+	s += "<!DOCTYPE HTML>\r\n<html>\r\n";
+	// If we're setting the LED, print out a message saying we did
+	if (val == 2) {
+		client.print(s);
+		client.setNoDelay(true);
+		while (client.connected()) {
+			static int last_val = 0;
+			int val = re.value();
+			if (val != last_val) {
+				Serial.printf("-> %d\n", re.value());
+				client.printf("-> %d<br>\r\n", re.value());
+				last_val = val;
+				client.flush();
+			}
+			delay(10);
+		}
+	}
+	if (val >= 0 and val < 2) {
+		s += "LED is now ";
+		s += (val)?"on":"off";
+	} else {
+		s += "Invalid Request.<br> Try /led/1, /led/0, or /knob.";
+	}
+	s += "</html>\n";
+
+	if (val != 2) {
+		// Send the response to the client
+		client.print(s);
+	}
+	delay(1);
+	Serial.println("Client disconnected");
 
 	delay(10);
 }
