@@ -1,6 +1,6 @@
 
-#include <ESP8266WiFi.h>
 #include <Arduino.h>
+#include <ESP8266WiFi.h>
 
 #define LED_PIN LED_BUILTIN
 #define LED2_PIN D2
@@ -12,8 +12,8 @@ struct UpDown {
 	int ustep = 1;
 
 	UpDown() = default;
-	UpDown(int umin, int umax=255, int ustep=1):
-		umin(umin), umax(umax), ustep(ustep) {}
+	UpDown(int umin, int umax = 255, int ustep = 1)
+	    : umin(umin), umax(umax), ustep(ustep) {}
 
 	int iter() {
 		uvalue += ustep;
@@ -25,9 +25,12 @@ struct UpDown {
 	}
 };
 
-template<int PIN_A,      int PIN_B,
-	int MIN_VAL,    int MAX_VAL,
-	int STEP_MIN=1, int STEP_MAX=16>
+template <int PIN_A,
+          int PIN_B,
+          int MIN_VAL,
+          int MAX_VAL,
+          int STEP_MIN = 1,
+          int STEP_MAX = 16>
 class RotaryEncoder {
 public:
 	void setup() {
@@ -37,9 +40,7 @@ public:
 		attachInterrupt(digitalPinToInterrupt(PIN_B), read_state, CHANGE);
 	}
 
-	int value() {
-		return valueref();
-	}
+	int value() { return valueref(); }
 
 private:
 	static int& valueref() {
@@ -79,7 +80,8 @@ private:
 		const uint8_t new_state = (a << 1 | b);
 
 		// No change with most recent state? We ignore.
-		if ((full_step & 0x03) == new_state) return;
+		if ((full_step & 0x03) == new_state)
+			return;
 
 		// Appending new_state to the history.
 		full_step = (full_step << 2) | new_state;
@@ -129,15 +131,14 @@ void setup() {
 	analogWrite(LED2_PIN, 0);
 	re.setup();
 
-	//connect_wifi();
-	//server.begin();
+	// connect_wifi();
+	// server.begin();
 
 	Serial.printf("SETUP DONE\n");
 }
 
-
 void loop() {
-	//analogWrite(LED_1, ud_led1.iter());
+	// analogWrite(LED_1, ud_led1.iter());
 
 	{
 		static int last_val = 0;
@@ -148,9 +149,7 @@ void loop() {
 		last_val = val;
 	}
 
-	{
-		analogWrite(LED2_PIN, udled2.iter());
-	}
+	{ analogWrite(LED2_PIN, udled2.iter()); }
 
 	delay(10);
 	return;
@@ -165,14 +164,14 @@ void loop() {
 	client.flush();
 
 	// Match the request
-	int val = -1; // We'll use 'val' to keep track of both the
+	int val = -1;  // We'll use 'val' to keep track of both the
 	// request type (read/set) and value if set.
 	if (req.indexOf("/led/0") != -1)
-		val = 0; // Will write LED low
+		val = 0;  // Will write LED low
 	else if (req.indexOf("/led/1") != -1)
-		val = 1; // Will write LED high
+		val = 1;  // Will write LED high
 	else if (req.indexOf("/knob") != -1)
-		val = 2; // Will write LED high
+		val = 2;  // Will write LED high
 	// Otherwise request will be invalid. We'll say as much in HTML
 
 	// Set GPIO5 according to the request
@@ -184,7 +183,7 @@ void loop() {
 	// Prepare the response. Start with the common header:
 	String s = "HTTP/1.1 200 OK\r\n";
 	s += "Content-Type: text/html\r\n";
-	//s += "Transfer-Encoding: chunked\r\n";
+	// s += "Transfer-Encoding: chunked\r\n";
 	s += "\r\n";
 	s += "<!DOCTYPE HTML>\r\n<html>\r\n";
 	// If we're setting the LED, print out a message saying we did
@@ -205,7 +204,7 @@ void loop() {
 	}
 	if (val >= 0 and val < 2) {
 		s += "LED is now ";
-		s += (val)?"on":"off";
+		s += (val) ? "on" : "off";
 	} else {
 		s += "Invalid Request.<br> Try /led/1, /led/0, or /knob.";
 	}
