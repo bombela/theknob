@@ -1,6 +1,8 @@
 #include <ESP8266WiFi.h>
 #include <Arduino.h>
 
+#include "sine_wave.hpp"
+
 #define LED_PIN LED_BUILTIN
 #define LED2_PIN D2
 
@@ -119,7 +121,7 @@ void connect_wifi() {
 
 RotaryEncoder<D5, D6, 0, 1023, 1, 42> re;
 WiFiServer server(80);
-UpDown udled2(0, 1023, 5);
+SineWave led_intensity(0, 1023, 1.75);
 
 void setup() {
 	Serial.begin(9600);
@@ -148,7 +150,7 @@ void loop() {
 		last_val = val;
 	}
 
-	{ analogWrite(LED2_PIN, udled2.iter()); }
+	{ analogWrite(LED2_PIN, led_intensity.Step()); }
 
 	delay(10);
 	return;
