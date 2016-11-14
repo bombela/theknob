@@ -3,8 +3,11 @@
 
 #include "sine_wave.hpp"
 
-#define LED_PIN LED_BUILTIN
-#define LED2_PIN D2
+#define SW_LED_PWM    D7
+#define SW_LED_VBOOST D3
+#define SW_STATE      D2
+#define ROTENC_A      D5
+#define ROTENC_B      D6
 
 struct UpDown {
 	int uvalue = 0;
@@ -119,18 +122,21 @@ void connect_wifi() {
 	Serial.printf("WIFI CONNECTED (%s)\n", WiFi.localIP().toString().c_str());
 }
 
-RotaryEncoder<D5, D6, 0, 1023, 1, 42> re;
-WiFiServer server(80);
-SineWave led_intensity(0, 1023, 1.75);
+//RotaryEncoder<ROTENC_A, ROTENC_B, 0, 1023, 1, 42> rot_enc;
+RotaryEncoder<ROTENC_A, ROTENC_B, 0, 511, 1, 21> rot_enc;
+//WiFiServer server(80);
 
 void setup() {
 	Serial.begin(9600);
 	Serial.printf("SETUP START\n");
 
-	pinMode(LED_PIN, OUTPUT);
-	pinMode(LED2_PIN, OUTPUT);
-	analogWrite(LED2_PIN, 0);
-	re.setup();
+	pinMode(SW_LED_PWM, OUTPUT);
+	pinMode(SW_LED_VBOOST, OUTPUT);
+	pinMode(SW_STATE, INPUT_PULLUP);
+
+	analogWrite(SW_LED_PWM, 0);
+	digitalWrite(SW_LED_VBOOST, 0);
+	rot_enc.setup();
 
 	// connect_wifi();
 	// server.begin();
@@ -139,22 +145,70 @@ void setup() {
 }
 
 void loop() {
-	// analogWrite(LED_1, ud_led1.iter());
+	static int blinks = 2;
+	if (blinks-- > 0) {
+		Serial.printf("BLINK BLINK %d\n", blinks);
 
+		analogWrite(SW_LED_PWM, 255);
+		delay(250);
+		analogWrite(SW_LED_PWM, 0);
+		delay(250);
+		analogWrite(SW_LED_PWM, 255);
+		delay(250);
+		analogWrite(SW_LED_PWM, 0);
+		delay(250);
+
+
+		analogWrite(SW_LED_PWM, 255);
+		digitalWrite(SW_LED_VBOOST, 1);
+		delay(250);
+		analogWrite(SW_LED_PWM, 0);
+		delay(250);
+		analogWrite(SW_LED_PWM, 255);
+		delay(100);
+		digitalWrite(SW_LED_VBOOST, 0);
+		delay(150);
+		analogWrite(SW_LED_PWM, 0);
+
+		if (blinks > 0) {
+			delay(1000);
+		} else {
+			Serial.printf("LET'S GO!\n");
+		}
+		return;
+	}
+
+	int sw_state = digitalRead(SW_STATE);
+
+	static int led_pwm_val = 0;
 	{
 		static int last_val = 0;
-		int val = re.value();
+		int val = rot_enc.value();
 		if (val != last_val) {
-			Serial.printf("-> %d\n", re.value());
+			Serial.printf("-> %d\n", rot_enc.value());
+			digitalWrite(SW_LED_VBOOST, (val >= 256));
+			led_pwm_val = val % 256;
 		}
 		last_val = val;
 	}
 
-	{ analogWrite(LED2_PIN, led_intensity.Step()); }
+	static int blink = 0;
+	if (sw_state) {
+		blink = !blink;
+	} else {
+		blink = 0;
+	}
+
+	if (blink) {
+		analogWrite(SW_LED_PWM, 0);
+	} else {
+		analogWrite(SW_LED_PWM, led_pwm_val);
+	}
 
 	delay(10);
 	return;
 
+#if 0
 	WiFiClient client = server.available();
 	if (!client) {
 		return;
@@ -219,4 +273,5 @@ void loop() {
 	Serial.println("Client disconnected");
 
 	delay(10);
+#endif
 }
